@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor Secuencial para Manhwas</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #1a1a1a; color: #e0e0e0; text-align: center; }
+        .box { border: 2px dashed #555; padding: 30px; border-radius: 15px; background: #252525; }
+        #status { margin-top: 20px; font-weight: bold; color: #00ffcc; }
+        .download-link { display: block; background: #333; color: #fff; padding: 10px; margin: 5px 0; border-radius: 5px; text-decoration: none; border: 1px solid #444; }
+        button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; margin-top: 10px; width: 100%; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <h2>Vriza WebP Converter</h2>
+    <div class="box">
+        <input type="file" id="inputImagenes" accept="image/jpeg" multiple style="display: none;">
+        <button onclick="document.getElementById('inputImagenes').click()">Seleccionar Imágenes del Capítulo</button>
+        <p id="contador">No hay archivos seleccionados</p>
+    </div>
+
+    <div id="status">Esperando...</div>
+    <div id="listaDescargas"></div>
+
+    <script>
+        const input = document.getElementById('inputImagenes');
+        const status = document.getElementById('status');
+        const contador = document.getElementById('contador');
+        const listaDescargas = document.getElementById('listaDescargas');
+
+        input.addEventListener('change', async (e) => {
+            const archivos = Array.from(e.target.files);
+            if (archivos.length === 0) return;
+
+            contador.innerText = `${archivos.length} imágenes seleccionadas.`;
+            status.innerText = "Iniciando proceso...";
+            listaDescargas.innerHTML = ""; // Limpiar lista anterior
+
+            // AQUÍ OCURRE LA MAGIA DEL PROCESAMIENTO EN FILA
+            for (let i = 0; i < archivos.length; i++) {
+                const num = i + 1;
+                status.innerText = `Procesando imagen ${num} de ${archivos.length}...`;
+                
+                try {
+                    await convertirImagen(archivos[i]);
+                } catch (err) {
+                    console.error("Error en imagen " + num, err);
+                }
+            }
+
+            status.innerText = "¡Todo listo! Revisa tus descargas.";
+        });
+
+        function convertirImagen(archivo) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(archivo);
+
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+
+                        // Convertir a WebP
+                        canvas.toBlob((blob) => {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = archivo.name.replace(/\.[^/.]+$/, "") + ".webp";
+                            link.className = "download-link";
+                            link.innerText = `Descargar ${link.download} ✅`;
+                            
+                            listaDescargas.appendChild(link);
+
+                            // --- LIMPIEZA DE RAM ---
+                            // 1. Forzamos la descarga automática si el navegador lo permite
+                            link.click(); 
+                            
+                            // 2. Liberamos memoria del objeto URL y del canvas
+                            // URL.revokeObjectURL(url); // Opcional si quieres ahorrar más
+                            canvas.width = 0;
+                            canvas.height = 0;
+                            img.src = ""; 
+                            
+                            resolve();
+                        }, 'image/webp', 0.8); // 0.8 es la calidad
+                    };
+
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+    </script>
+</body>
+</html>
