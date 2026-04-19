@@ -83,27 +83,40 @@
     };
 
     function procesarLimpieza() {
+        // 1. Actualizamos el estado visual
         document.getElementById('statusCleaner').innerText = "Procesando... por favor espere.";
         
-        let src = cv.imread(imgElement);
-        let mask = new cv.Mat();
-        let gray = new cv.Mat();
-        let dst = new cv.Mat();
+        // 2. Usamos setTimeout para que el navegador tenga tiempo de mostrar el mensaje
+        setTimeout(() => {
+            try {
+                let src = cv.imread(imgElement);
+                let mask = new cv.Mat();
+                let gray = new cv.Mat();
+                let dst = new cv.Mat();
 
-        // 1. Detectar zonas brillantes (marcas de agua blancas)
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-        cv.threshold(gray, 220, 255, cv.THRESH_BINARY, mask);
+                // Detectar zonas brillantes (marcas de agua blancas)
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                
+                // CORRECCIÓN: El orden correcto es (src, dst, thresh, maxval, type)
+                cv.threshold(gray, mask, 220, 255, cv.THRESH_BINARY);
 
-        // 2. Aplicar Inpainting
-        cv.inpaint(src, mask, dst, 3, cv.INPAINT_TELEA);
+                // Aplicar Inpainting
+                cv.inpaint(src, mask, dst, 3, cv.INPAINT_TELEA);
 
-        // 3. Mostrar y Liberar RAM
-        cv.imshow('canvasOutput', dst);
-        
-        // ¡Súper importante para la RAM!
-        src.delete(); gray.delete(); mask.delete(); dst.delete();
-        
-        document.getElementById('statusCleaner').innerText = "Proceso terminado. Memoria liberada.";
+                // Mostrar resultado en el canvas
+                cv.imshow('canvasOutput', dst);
+                
+                // Liberar RAM (¡Súper importante!)
+                src.delete(); gray.delete(); mask.delete(); dst.delete();
+                
+                document.getElementById('statusCleaner').innerText = "Proceso terminado. Memoria liberada.";
+                
+            } catch (error) {
+                // Si algo falla en OpenCV, lo capturamos aquí
+                console.error("Error en OpenCV:", error);
+                document.getElementById('statusCleaner').innerText = "Ocurrió un error al procesar la imagen. Revisa la consola.";
+            }
+        }, 50);
     }
 
     // --- LÓGICA WEBP ---
