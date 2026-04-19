@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knon Ecosystem - Image Suite</title>
+    <script async src="https://docs.opencv.org/4.5.4/opencv.js" type="text/javascript"></script>
+    <style>
+        :root {
+            --primary: #0070f3;
+            --dark: #1a1a1a;
+            --light: #f4f4f4;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--light); color: var(--dark); }
+        
+        /* Menú de Navegación Simple */
+        nav { background: var(--dark); color: white; padding: 1rem; display: flex; justify-content: center; gap: 20px; }
+        nav button { background: none; border: 1px solid white; color: white; padding: 8px 15px; cursor: pointer; border-radius: 5px; transition: 0.3s; }
+        nav button.active { background: var(--primary); border-color: var(--primary); }
+        nav button:hover { background: #333; }
+
+        .container { max-width: 800px; margin: 30px auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        canvas, img { max-width: 100%; border-radius: 8px; margin-top: 15px; border: 1px solid #ddd; }
+        .btn-action { margin-top: 20px; padding: 12px 25px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .btn-action:disabled { background: #ccc; cursor: not-allowed; }
+        .status { margin-top: 10px; font-size: 0.9rem; color: #666; }
+        
+        footer { margin-top: 50px; font-size: 0.8rem; color: #999; text-align: center; padding-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <button id="btnTab1" class="active" onclick="showTab('tab1')">Eliminar Marca de Agua</button>
+    <button id="btnTab2" onclick="showTab('tab2')">Convertidor WebP</button>
+</nav>
+
+<div class="container">
+    <div id="tab1" class="section active">
+        <h2>Knon Forensic Cleaner</h2>
+        <p>Eliminación de marcas de agua procesada en RAM local.</p>
+        <input type="file" id="fileInputCleaner" accept="image/*">
+        <div class="status" id="statusCleaner">Esperando OpenCV.js (WebAssembly)...</div>
+        <button id="runCleaner" class="btn-action" onclick="procesarLimpieza()" disabled>Ejecutar Inpainting</button>
+        <br>
+        <canvas id="canvasOutput"></canvas>
+    </div>
+
+    <div id="tab2" class="section">
+        <h2>Knon WebP Converter</h2>
+        <p>Optimización de imágenes para el ecosistema.</p>
+        <input type="file" id="fileInputWebp" accept="image/jpeg, image/png">
+        <div class="status" id="statusWebp">Listo para convertir.</div>
+        <button class="btn-action" onclick="convertirAWebp()">Convertir y Descargar</button>
+        <br>
+        <div id="resultWebp"></div>
+    </div>
+</div>
+
+<footer>Powered by Knon Ecosystem | 2026</footer>
+
+<script>
+    // Gestión de Pestañas
+    function showTab(tabId) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if(tabId === 'tab1') document.getElementById('btnTab1').classList.add('active');
+        else document.getElementById('btnTab2').classList.add('active');
+    }
+
+    // --- LÓGICA DE LIMPIEZA (OpenCV) ---
+    let imgElement = new Image();
+    document.getElementById('fileInputCleaner').onchange = (e) => {
+        imgElement.src = URL.createObjectURL(e.target.files[0]);
+    };
+    imgElement.onload = () => {
+        document.getElementById('statusCleaner').innerText = "Imagen cargada en RAM.";
+        document.getElementById('runCleaner').disabled = false;
+    };
+
+    function procesarLimpieza() {
+        document.getElementById('statusCleaner').innerText = "Procesando... por favor espere.";
+        
+        let src = cv.imread(imgElement);
+        let mask = new cv.Mat();
+        let gray = new cv.Mat();
+        let dst = new cv.Mat();
+
+        // 1. Detectar zonas brillantes (marcas de agua blancas)
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        cv.threshold(gray, 220, 255, cv.THRESH_BINARY, mask);
+
+        // 2. Aplicar Inpainting
+        cv.inpaint(src, mask, dst, 3, cv.INPAINT_TELEA);
+
+        // 3. Mostrar y Liberar RAM
+        cv.imshow('canvasOutput', dst);
+        
+        // ¡Súper importante para la RAM!
+        src.delete(); gray.delete(); mask.delete(); dst.delete();
+        
+        document.getElementById('statusCleaner').innerText = "Proceso terminado. Memoria liberada.";
+    }
+
+    // --- LÓGICA WEBP ---
+    function convertirAWebp() {
+        const file = document.getElementById('fileInputWebp').files[0];
+        if (!file) return alert("Selecciona una foto primero");
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                
+                const webpData = canvas.toDataURL('image/webp', 0.8);
+                const link = document.createElement('a');
+                link.download = "knon_optimized.webp";
+                link.href = webpData;
+                link.innerText = "Click aquí para descargar WebP";
+                document.getElementById('resultWebp').innerHTML = "";
+                document.getElementById('resultWebp').appendChild(link);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Activar botón de limpieza cuando OpenCV esté listo
+    var Module = {
+        onRuntimeInitialized: () => {
+            document.getElementById('statusCleaner').innerText = "Sistema Knon (OpenCV) listo.";
+        }
+    };
+</script>
+
+</body>
+</html>
